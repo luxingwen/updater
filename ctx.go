@@ -26,9 +26,21 @@ func (ctx *Context) Abort() {
 	ctx.Cancel()
 }
 
-func (ctx *Context) SendResponse(resp interface{}) {
+func (ctx *Context) JSONSuccess(req interface{}) {
+	ctx.SendResponse(CODE_SUCCESS, "ok", req)
+}
+
+func (ctx *Context) JSONError(code string, msg string) {
+	ctx.SendResponse(code, msg, nil)
+}
+
+func (ctx *Context) SendResponse(code string, msg string, resp interface{}) {
 	ctx.Message.Method = METHOD_RESPONSE
-	ctx.Message.Data, _ = json.Marshal(resp)
+	ctx.Message.Code = code
+	ctx.Message.Msg = msg
+	if resp != nil {
+		ctx.Message.Data, _ = json.Marshal(resp)
+	}
 	b, _ := json.Marshal(ctx.Message)
 	ctx.Client.SendMessage(b)
 }

@@ -3,13 +3,20 @@ package updater
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"reflect"
+	"runtime"
 	"time"
 )
 
 const (
 	METHOD_REQUEST  = "request"
 	METHOD_RESPONSE = "response"
+
+	CODE_SUCCESS = "success"
+	CODE_ERROR   = "error"
+	CODE_TIMEOUT = "timeout"
 )
 
 type Message struct {
@@ -17,6 +24,9 @@ type Message struct {
 	Type    string          `json:"type"`
 	Method  string          `json:"method"`
 	Data    json.RawMessage `json:"data"`
+	Code    string          `json:"code"`
+	Msg     string          `json:"msg"` // 新增 Msg 字段
+	TraceId string          `json:"traceId"`
 	Timeout time.Duration   // 添加 Timeout 字段
 }
 
@@ -40,6 +50,17 @@ func (h *MessageHandler) RegisterHandler(messageType string, handler HandlerFunc
 	}
 
 	h.handlers[messageType] = handler
+}
+
+func (h *MessageHandler) PrintRegisteredHandlers() {
+	fmt.Println("Registered Handlers:")
+	for messageType, handler := range h.handlers {
+		// 使用反射获取处理程序的名称
+		handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+		fmt.Printf("Message Type:%s  %s\n", messageType, handlerName)
+
+	}
+	fmt.Println("------------------------")
 }
 
 func (h *MessageHandler) HandleMessages(client *Client, numWorkers int) {

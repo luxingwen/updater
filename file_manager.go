@@ -70,6 +70,7 @@ type DownloadRequest struct {
 	DestPath         string `json:"destPath"`         // 目标路径
 	AutoCreateDir    bool   `json:"autoCreateDir"`    // 是否自动创建文件夹
 	OverwriteExisted bool   `json:"overwriteExisted"` // 文件存在是否覆盖文件
+	Timeout          int    `json:"timeout"`          // 超时时间
 }
 
 // DownloadFile 从URL下载文件

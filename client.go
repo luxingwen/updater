@@ -3,12 +3,15 @@ package updater
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/url"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -16,10 +19,11 @@ type Client struct {
 	conn           *websocket.Conn
 	send           chan []byte
 	Url            string
+	UUID           string
 	Connected      bool
 	HostIP         string
 	HostName       string
-	UUID           string
+	Vmuuid         string
 	Token          string // 新增 Token 字段
 	Server         *Server
 	OS             string //
@@ -68,8 +72,10 @@ func (c *Client) connect() error {
 		return err
 	}
 	// 保存连接和负载信息
+
 	c.conn = conn
 	c.Connected = true
+	log.Printf("Connected to %s, load: %d", c.Server.Url.String(), load)
 	c.Server.mu.Lock()
 	c.Server.Load = load
 	c.Server.Checked = true
@@ -113,6 +119,48 @@ func (c *Client) Stop() {
 	c.conn.Close()
 }
 
+func (c *Client) setInitClientInfo() {
+	c.setVmUuid()
+	c.setHostName()
+	c.setUUID()
+	return
+}
+
+func (c *Client) setVmUuid() {
+	c.Vmuuid = getVmuuid()
+	return
+}
+
+func (c *Client) setHostName() {
+	c.HostName = getHostName()
+	return
+}
+
+func (c *Client) setUUID() {
+	if c.UUID == "" {
+		// Check if the UUID file exists
+		if _, err := os.Stat("uuid.txt"); err == nil {
+			// Read the UUID from the file
+			data, err := ioutil.ReadFile("uuid.txt")
+			if err != nil {
+				log.Println("Failed to read UUID from file:", err)
+			} else {
+				c.UUID = string(data)
+				return
+			}
+		} else {
+			// Generate a new UUID
+			c.UUID = uuid.New().String()
+			// Write the UUID to the file
+			err := ioutil.WriteFile("uuid.txt", []byte(c.UUID), 0644)
+			if err != nil {
+				log.Println("Failed to write UUID to file:", err)
+			}
+		}
+	}
+	return
+}
+
 // 从websocket读取消息的goroutine
 func (c *Client) readPump() {
 	defer c.conn.Close()
@@ -121,6 +169,8 @@ func (c *Client) readPump() {
 		if err != nil {
 			log.Println("read:", err)
 			c.Connected = false
+			time.Sleep(5 * time.Second)
+			log.Println("reconnecting to server...", c.Server.Url.String())
 			c.connect()
 			continue
 		}

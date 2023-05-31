@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"updater"
+
+	v1 "updater/controller/v1"
 )
 
 func main() {
@@ -15,6 +17,10 @@ func main() {
 	servers := make([]*updater.Server, 0)
 	msghanlder := updater.NewMessageHandler(10)
 
+	v1.NewFileController(msghanlder)
+
+	msghanlder.PrintRegisteredHandlers()
+
 	for _, item := range updater.GetConfig().ServerAddress {
 		servers = append(servers, updater.NewServer(item))
 	}
@@ -24,6 +30,7 @@ func main() {
 			time.Sleep(time.Second * 5)
 			continue
 		}
+		break
 	}
 
 	msghanlder.HandleMessages(client, 10)
