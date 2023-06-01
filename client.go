@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -21,13 +22,16 @@ type Client struct {
 	Url            string
 	UUID           string
 	Connected      bool
+	Registered     bool // 是否已经注册
 	HostIP         string
+	LocalIPs       string
 	HostName       string
 	Vmuuid         string
 	Token          string // 新增 Token 字段
 	Server         *Server
 	OS             string //
 	Arch           string //
+	Version        string
 	messageHandler *MessageHandler
 }
 
@@ -41,7 +45,7 @@ type Server struct {
 func NewClient(server *Server, messageHandler *MessageHandler) *Client {
 	return &Client{
 		Server:         server,
-		send:           make(chan []byte),
+		send:           make(chan []byte, 4096),
 		messageHandler: messageHandler,
 	}
 }
@@ -57,8 +61,11 @@ func NewServer(urlAddress string) *Server {
 }
 
 func (c *Client) connect() error {
+	if c.UUID == "" {
+		c.setUUID()
+	}
 	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial(c.Server.Url.String(), nil)
+	conn, _, err := dialer.Dial(c.Server.Url.String()+c.UUID, nil)
 	if err != nil {
 		return err
 	}
@@ -105,12 +112,32 @@ func ConnectToServers(servers []*Server, messageHandler *MessageHandler) (*Clien
 
 // 启动客户端，包括连接到服务器以及启动读写goroutines
 func (c *Client) Start() error {
-	err := c.connect()
-	if err != nil {
-		return err
+	for {
+		err := c.connect()
+		if err != nil {
+			log.Println("connect to:", c.Server.Url.String()+c.UUID, " error:", err)
+			log.Println("retry after 5 seconds")
+			time.Sleep(time.Second * 5)
+			continue
+		}
+		break
 	}
+
 	go c.readPump()
 	go c.writePump()
+
+	for {
+		c.ClientRegister()
+		log.Println("registering...")
+		time.Sleep(time.Second * 5)
+		if c.Registered {
+			log.Println("register success")
+			break
+		}
+		log.Println("register failed, retry after 5 seconds")
+		time.Sleep(time.Second * 5)
+	}
+
 	return nil
 }
 
@@ -123,7 +150,40 @@ func (c *Client) setInitClientInfo() {
 	c.setVmUuid()
 	c.setHostName()
 	c.setUUID()
+	c.OS = runtime.GOOS
+	c.Arch = runtime.GOARCH
+	c.Version = Version
+
+	var err error
+	c.LocalIPs, err = GetLocalIPs()
+
+	if err != nil {
+		log.Println("get local ips error:", err)
+	}
+
 	return
+}
+
+func (c *Client) ClientRegister() {
+	c.setInitClientInfo()
+	clientinfo := c.getClientInfo()
+	clientinfo.LocalIPs = c.LocalIPs
+
+	data, err := json.Marshal(clientinfo)
+	if err != nil {
+		log.Println("marshal client info error:", err)
+		return
+	}
+
+	msg := &Message{
+		Type:   "Register",
+		Id:     uuid.New().String(),
+		Data:   json.RawMessage(data),
+		Method: METHOD_REQUEST,
+	}
+
+	c.SendMessage(msg)
+
 }
 
 func (c *Client) setVmUuid() {
@@ -170,7 +230,7 @@ func (c *Client) readPump() {
 			log.Println("read:", err)
 			c.Connected = false
 			time.Sleep(5 * time.Second)
-			log.Println("reconnecting to server...", c.Server.Url.String())
+			log.Println("reconnecting to server...", c.Server.Url.String()+c.UUID)
 			c.connect()
 			continue
 		}
@@ -200,6 +260,7 @@ func (c *Client) writePump() {
 		select {
 		case message, ok := <-c.send:
 			if !ok {
+				log.Println("send channel closed")
 				// 如果通道关闭，关闭websocket连接
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
@@ -211,16 +272,70 @@ func (c *Client) writePump() {
 			}
 		case <-ticker.C:
 			// 定时ping服务器以保持连接
-			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				return
-			}
+			log.Println("send heartbeat to server...")
+			c.Heartbeat()
 		}
 	}
 }
 
+func (c *Client) getClientInfo() (r *ClientInfo) {
+	r = &ClientInfo{
+		UUID:      c.UUID,
+		HostIP:    c.HostIP,
+		HostName:  c.HostName,
+		Vmuuid:    c.Vmuuid,
+		OS:        c.OS,
+		Arch:      c.Arch,
+		Heartbeat: time.Now().Unix(),
+	}
+	return
+}
+
+func (c *Client) Heartbeat() {
+	clientInfo := c.getClientInfo()
+	b, _ := json.Marshal(clientInfo)
+	msg := &Message{
+		Id:     uuid.New().String(),
+		Type:   "Heartbeat",
+		Data:   json.RawMessage(b),
+		Method: METHOD_REQUEST,
+	}
+
+	c.SendMessage(msg)
+
+}
+
+type ClientInfo struct {
+	UUID      string `json:"uuid"`
+	HostIP    string `json:"hostIp"`
+	HostName  string `json:"hostName""`
+	Vmuuid    string `json:"vmuuid"`
+	Sn        string `json:"sn"`       // 序列号
+	OS        string `json:"os"`       //
+	Arch      string `json:"arch"`     //
+	Heartbeat int64  `json:"hearbeat"` // 心跳时间
+	LocalIPs  string `json:"localIps"` // 本地IP地址
+}
+
 // 向服务器发送消息
-func (c *Client) SendMessage(msg []byte) {
+func (c *Client) SendMessage(msg *Message) {
+	msg.From = c.UUID
+	if msg.Id == "" {
+		msg.Id = uuid.New().String()
+	}
+
+	b, err := json.Marshal(msg)
+	if err != nil {
+		log.Println("marshal message error:", err)
+		return
+	}
+	c.Send(b)
+}
+
+func (c *Client) Send(msg []byte) {
+	log.Println("send: ", string(msg))
 	if c.Connected {
+		log.Println("send message to server...")
 		c.send <- msg
 	}
 }

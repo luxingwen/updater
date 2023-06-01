@@ -41,13 +41,12 @@ func (ctx *Context) SendResponse(code string, msg string, resp interface{}) {
 	if resp != nil {
 		ctx.Message.Data, _ = json.Marshal(resp)
 	}
-	b, _ := json.Marshal(ctx.Message)
-	ctx.Client.SendMessage(b)
+
+	ctx.Client.SendMessage(ctx.Message)
 }
 
 func (ctx *Context) SendRequest(req interface{}) {
 	ctx.Message.Method = METHOD_REQUEST
 	ctx.Message.Data, _ = json.Marshal(req)
-	b, _ := json.Marshal(ctx.Message)
-	ctx.Client.SendMessage(b)
+	ctx.Client.SendMessage(ctx.Message)
 }

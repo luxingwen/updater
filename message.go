@@ -20,6 +20,8 @@ const (
 )
 
 type Message struct {
+	From    string          `json:"from"`
+	To      string          `json:"to"`
 	Id      string          `json:"id"`
 	Type    string          `json:"type"`
 	Method  string          `json:"method"`

@@ -18,6 +18,7 @@ func main() {
 	msghanlder := updater.NewMessageHandler(10)
 
 	v1.NewFileController(msghanlder)
+	v1.NewAuthController(msghanlder)
 
 	msghanlder.PrintRegisteredHandlers()
 

@@ -27,10 +27,10 @@ func NewFileController(handler *updater.MessageHandler) *FileController {
 }
 
 func (fc *FileController) registerHandlers() {
-	fc.handler.RegisterHandler("GetFileInfo", fc.handleGetFileInfo)
-	fc.handler.RegisterHandler("DeleteFile", fc.handleDeleteFile)
-	fc.handler.RegisterHandler("MoveFile", fc.handleMoveFile)
-	fc.handler.RegisterHandler("DownloadFile", fc.handleDownloadFile)
+	fc.handler.RegisterHandler("v1/GetFileInfo", fc.handleGetFileInfo)
+	fc.handler.RegisterHandler("v1/DeleteFile", fc.handleDeleteFile)
+	fc.handler.RegisterHandler("v1/MoveFile", fc.handleMoveFile)
+	fc.handler.RegisterHandler("v1/DownloadFile", fc.handleDownloadFile)
 }
 
 func (fc *FileController) handleGetFileInfo(ctx *updater.Context) error {
