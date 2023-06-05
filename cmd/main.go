@@ -19,6 +19,7 @@ func main() {
 
 	v1.NewFileController(msghanlder)
 	v1.NewAuthController(msghanlder)
+	v1.NewScriptController(msghanlder)
 
 	msghanlder.PrintRegisteredHandlers()
 
