@@ -9,6 +9,7 @@ const (
 	defaultInterpreter    = "powershell"
 	defaultInterpreterArg = "-Command"
 	defaultScriptSuffix   = ".ps1"
+	defaultWorkDir        = "C:\\Windows\\Temp"
 )
 
 func getVmuuid() string {

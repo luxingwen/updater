@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	defaultInterpreter    = "sh"
+	defaultInterpreter    = "/bin/bash"
 	defaultInterpreterArg = "-c"
 	defaultScriptSuffix   = ".sh"
+	defaultWorkDir        = "/tmp"
 )
 
 func getVmuuid() string {

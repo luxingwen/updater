@@ -66,6 +66,7 @@ func (fm *FileManager) BackupFile(src, dest string) error {
 
 // DownloadRequest 是下载请求参数
 type DownloadRequest struct {
+	DownLoadPath     string `json:"downloadPath"`     // 下载路径
 	URL              string `json:"url"`              // 下载 URL
 	DestPath         string `json:"destPath"`         // 目标路径
 	AutoCreateDir    bool   `json:"autoCreateDir"`    // 是否自动创建文件夹

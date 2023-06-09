@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -21,6 +22,7 @@ type ScriptTask struct {
 	InterpreterArgs []string
 	Params          []string
 	Timeout         time.Duration
+	WorkDir         string
 	Interpreter     string
 	Stdin           string
 	Created         time.Time
@@ -57,27 +59,37 @@ type ScriptResult struct {
 }
 
 type ScriptTaskRequest struct {
-	TaskID      string            `json:"task_id"`
-	Type        string            `json:"type"`
-	Content     string            `json:"content"`
-	Params      map[string]string `json:"params"`
-	Timeout     int               `json:"timeout"`
-	Interpreter string            `json:"interpreter"`
-	Stdin       string            `json:"stdin"`
+	TaskID      string   `json:"task_id"`
+	Type        string   `json:"type"`
+	Content     string   `json:"content"`
+	WorkDir     string   `json:"workDir"`
+	Params      []string `json:"params"`
+	Env         map[string]string
+	Timeout     int    `json:"timeout"`
+	Interpreter string `json:"interpreter"`
+	Stdin       string `json:"stdin"`
 }
 
 func NewScriptTask(request *ScriptTaskRequest) *ScriptTask {
-	return &ScriptTask{
+	st := &ScriptTask{
 		TaskID:       request.TaskID,
 		Type:         request.Type,
 		Content:      request.Content,
 		Interpreter:  request.Interpreter,
 		Stdin:        request.Stdin,
 		Status:       TaskStatusCreated,
+		WorkDir:      defaultWorkDir,
+		Params:       request.Params,
+		Env:          request.Env,
 		Created:      time.Now(),
 		Updated:      time.Now(),
+		Timeout:      time.Duration(request.Timeout) * time.Second,
 		ScriptResult: &ScriptResult{},
 	}
+	if request.WorkDir != "" {
+		st.WorkDir = request.WorkDir
+	}
+	return st
 }
 
 func (st *ScriptTask) GetType() string {
@@ -117,11 +129,35 @@ func (st *ScriptTask) Run() (err error) {
 	}
 	defer os.Remove(tmpfile.Name())
 
+	stdoutFile, err := ioutil.TempFile("", st.TaskID+".stdout")
+	if err != nil {
+		st.ScriptResult.Error = err.Error()
+		st.ScriptResult.Code = CodeCreateTempFileFailed
+		return err
+	}
+	defer stdoutFile.Close()
+	defer os.Remove(stdoutFile.Name())
+
+	log.Println("stdoutFile.Name():", stdoutFile.Name())
+
+	// 创建标准错误输出文件
+	stderrFile, err := ioutil.TempFile("", st.TaskID+".stderr")
+	if err != nil {
+		st.ScriptResult.Error = err.Error()
+		st.ScriptResult.Code = CodeCreateTempFileFailed
+		return err
+	}
+
+	log.Println("stderrFile.Name():", stderrFile.Name())
+	defer stderrFile.Close()
+	defer os.Remove(stderrFile.Name())
+
 	if _, err = tmpfile.Write([]byte(st.Content)); err != nil {
 		st.ScriptResult.Error = err.Error()
 		st.ScriptResult.Code = CodeWriteTempFileFailed
 		return
 	}
+
 	if err = tmpfile.Close(); err != nil {
 		st.ScriptResult.Error = err.Error()
 		st.ScriptResult.Code = CodeCloseTempFileFailed
@@ -135,8 +171,14 @@ func (st *ScriptTask) Run() (err error) {
 		return
 	}
 
-	args := append(st.InterpreterArgs, tmpfile.Name())
-	args = append(args, st.Params...)
+	cmdStr := tmpfile.Name() + " " + strings.Join(st.Params, " ")
+	//args := append(st.InterpreterArgs, tmpfile.Name())
+	args := append(st.InterpreterArgs, cmdStr)
+
+	log.Println("interpreter:", st.Interpreter)
+	log.Println("interpreter args:", st.InterpreterArgs)
+	log.Println("content", st.Content)
+	log.Println("args:", args)
 
 	ctx, cancel := context.WithTimeout(context.Background(), st.Timeout)
 	defer cancel()
@@ -144,9 +186,13 @@ func (st *ScriptTask) Run() (err error) {
 
 	cmd := exec.CommandContext(ctx, st.Interpreter, args...)
 
+	log.Println("cmd.Args:", cmd.Args)
+
 	if len(st.Stdin) > 0 {
 		cmd.Stdin = bytes.NewBufferString(st.Stdin)
 	}
+
+	cmd.Dir = st.WorkDir
 
 	env := make([]string, 0, len(st.Env))
 	for k, v := range st.Env {
@@ -160,20 +206,19 @@ func (st *ScriptTask) Run() (err error) {
 	cmd.Stdout = stdoutPipeWriter
 	cmd.Stderr = stderrPipeWriter
 
-	var stdout, stderr strings.Builder
 	stdoutDone := make(chan struct{})
 	stderrDone := make(chan struct{})
 
 	go func() {
 		defer close(stdoutDone)
 		defer stdoutPipeReader.Close()
-
 		reader := bufio.NewReader(stdoutPipeReader)
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
 				break
 			}
+			stdoutFile.WriteString(line)
 			st.ScriptResult.Stdout += line
 		}
 	}()
@@ -188,6 +233,7 @@ func (st *ScriptTask) Run() (err error) {
 			if err != nil {
 				break
 			}
+			stderrFile.WriteString(line)
 			st.ScriptResult.Stderr += line
 		}
 	}()
@@ -226,9 +272,6 @@ func (st *ScriptTask) Run() (err error) {
 		errorMsg = err.Error()
 		fmt.Println("err:", errorMsg)
 	}
-
-	fmt.Println(stdout.String())
-	fmt.Println(stderr.String())
 
 	st.ScriptResult.Code = CodeSuccess
 	st.ScriptResult.EndTime = endTime
