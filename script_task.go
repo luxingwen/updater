@@ -273,6 +273,14 @@ func (st *ScriptTask) Run() (err error) {
 		fmt.Println("err:", errorMsg)
 	}
 
+	log.Println("exitCode:", exitCode)
+	log.Println("startTime:", startTime)
+	log.Println("endTime:", endTime)
+	log.Println("errorMsg:", errorMsg)
+	log.Println("stdout:", st.ScriptResult.Stdout)
+	log.Println("stderr:", st.ScriptResult.Stderr)
+	log.Println("code:", CodeSuccess)
+
 	st.ScriptResult.Code = CodeSuccess
 	st.ScriptResult.EndTime = endTime
 	st.ScriptResult.StartTime = startTime

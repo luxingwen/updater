@@ -23,8 +23,8 @@ type Message struct {
 	From    string          `json:"from"`
 	To      string          `json:"to"`
 	Id      string          `json:"id"`
-	Type    string          `json:"type"`
-	Method  string          `json:"method"`
+	Type    string          `json:"type"`   // 消息类型
+	Method  string          `json:"method"` // 消息方法
 	Data    json.RawMessage `json:"data"`
 	Code    string          `json:"code"`
 	Msg     string          `json:"msg"` // 新增 Msg 字段
