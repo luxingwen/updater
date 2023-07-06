@@ -65,7 +65,9 @@ func (c *Client) connect() error {
 		c.setUUID()
 	}
 	dialer := websocket.Dialer{}
-	conn, _, err := dialer.Dial(c.Server.Url.String()+c.UUID, nil)
+	address := c.Server.Url.String() + c.UUID + "/" + uuid.New().String()
+	log.Println("connect to:", address)
+	conn, _, err := dialer.Dial(address, nil)
 	if err != nil {
 		return err
 	}
@@ -221,6 +223,37 @@ func (c *Client) setUUID() {
 	return
 }
 
+// 重连
+func (c *Client) reconnect() {
+	c.Connected = false
+	time.Sleep(5 * time.Second)
+	log.Println("reconnecting to server...", c.Server.Url.String()+c.UUID)
+
+	err := c.connect()
+	if err != nil {
+		log.Println("connect to:", c.Server.Url.String()+c.UUID, " error:", err)
+		log.Println("retry after 5 seconds")
+		time.Sleep(time.Second * 5)
+		return
+	}
+
+	c.Registered = false
+	go func() {
+		for {
+			c.ClientRegister()
+			log.Println("registering...")
+			time.Sleep(time.Second * 5)
+			if c.Registered {
+				log.Println("register success")
+				break
+			}
+			log.Println("register failed, retry after 5 seconds")
+			time.Sleep(time.Second * 5)
+		}
+	}()
+
+}
+
 // 从websocket读取消息的goroutine
 func (c *Client) readPump() {
 	defer c.conn.Close()
@@ -228,10 +261,8 @@ func (c *Client) readPump() {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
-			c.Connected = false
-			time.Sleep(5 * time.Second)
-			log.Println("reconnecting to server...", c.Server.Url.String()+c.UUID)
-			c.connect()
+
+			c.reconnect()
 			continue
 		}
 		log.Println("recv: ", string(message))
@@ -268,7 +299,8 @@ func (c *Client) writePump() {
 			err := c.conn.WriteMessage(websocket.TextMessage, message)
 			if err != nil {
 				log.Println("write:", err)
-				return
+				c.reconnect()
+				continue
 			}
 		case <-ticker.C:
 			// 定时ping服务器以保持连接

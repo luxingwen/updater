@@ -49,13 +49,14 @@ const (
 )
 
 type ScriptResult struct {
-	Code      ScriptErrorCode
-	Stdout    string
-	Stderr    string
-	Error     string
-	ExitCode  int
-	StartTime time.Time
-	EndTime   time.Time
+	TaskID    string          `json:"task_id"`
+	Code      ScriptErrorCode `json:"code"`
+	Stdout    string          `json:"stdout"`
+	Stderr    string          `json:"stderr"`
+	Error     string          `json:"error"`
+	ExitCode  int             `json:"exit_code"`
+	StartTime time.Time       `json:"start_time"`
+	EndTime   time.Time       `json:"end_time"`
 }
 
 type ScriptTaskRequest struct {
@@ -72,19 +73,21 @@ type ScriptTaskRequest struct {
 
 func NewScriptTask(request *ScriptTaskRequest) *ScriptTask {
 	st := &ScriptTask{
-		TaskID:       request.TaskID,
-		Type:         request.Type,
-		Content:      request.Content,
-		Interpreter:  request.Interpreter,
-		Stdin:        request.Stdin,
-		Status:       TaskStatusCreated,
-		WorkDir:      defaultWorkDir,
-		Params:       request.Params,
-		Env:          request.Env,
-		Created:      time.Now(),
-		Updated:      time.Now(),
-		Timeout:      time.Duration(request.Timeout) * time.Second,
-		ScriptResult: &ScriptResult{},
+		TaskID:      request.TaskID,
+		Type:        request.Type,
+		Content:     request.Content,
+		Interpreter: request.Interpreter,
+		Stdin:       request.Stdin,
+		Status:      TaskStatusCreated,
+		WorkDir:     defaultWorkDir,
+		Params:      request.Params,
+		Env:         request.Env,
+		Created:     time.Now(),
+		Updated:     time.Now(),
+		Timeout:     time.Duration(request.Timeout) * time.Second,
+		ScriptResult: &ScriptResult{
+			TaskID: request.TaskID,
+		},
 	}
 	if request.WorkDir != "" {
 		st.WorkDir = request.WorkDir
