@@ -34,6 +34,10 @@ func (ctx *Context) JSONError(code string, msg string) {
 	ctx.SendResponse(code, msg, nil)
 }
 
+func (ctx *Context) JSON(code string, msg string, req interface{}) {
+	ctx.SendResponse(code, msg, req)
+}
+
 func (ctx *Context) SendResponse(code string, msg string, resp interface{}) {
 	ctx.Message.Method = METHOD_RESPONSE
 	ctx.Message.Code = code

@@ -58,16 +58,34 @@ func (fc *FileController) handleMoveFile(ctx *updater.Context) error {
 	return nil
 }
 
+// 执行信息
+type ExecuteInfo struct {
+	StartTime time.Time `json:"startTime""`
+	EndTime   time.Time `json:"endTime"`
+	Message   string    `json:"message"`
+}
+
 // ... 类似地，实现 handleMoveFile 和 handleDownloadFile ...
 func (fc *FileController) handleDownloadFile(ctx *updater.Context) error {
+
+	log.Println("handleDownloadFile taskid:", ctx.Message.TaskId)
+
+	execinfo := ExecuteInfo{
+		StartTime: time.Now(),
+	}
+
 	var reqmsg updater.DownloadRequest
 	if err := json.Unmarshal(ctx.Message.Data, &reqmsg); err != nil {
-		ctx.JSONError(updater.CODE_ERROR, err.Error())
+		execinfo.EndTime = time.Now()
+		execinfo.Message = err.Error()
+		ctx.JSON(updater.CODE_ERROR, err.Error(), execinfo)
 		return err
 	}
 
 	if reqmsg.URL == "" && reqmsg.DownLoadPath == "" {
-		ctx.JSONError(updater.CODE_ERROR, "url or downloadpath is empty")
+		execinfo.EndTime = time.Now()
+		execinfo.Message = "url or downloadpath is empty"
+		ctx.JSON(updater.CODE_ERROR, "url or downloadpath is empty", execinfo)
 		return fmt.Errorf("url or downloadpath is empty")
 	}
 
@@ -84,7 +102,9 @@ func (fc *FileController) handleDownloadFile(ctx *updater.Context) error {
 	if reqmsg.AutoCreateDir {
 		err := os.MkdirAll(filepath.Dir(reqmsg.DestPath), 0755)
 		if err != nil {
-			ctx.JSONError(updater.CODE_ERROR, err.Error())
+			execinfo.EndTime = time.Now()
+			execinfo.Message = err.Error()
+			ctx.JSON(updater.CODE_ERROR, err.Error(), execinfo)
 			return err
 		}
 	}
@@ -94,7 +114,9 @@ func (fc *FileController) handleDownloadFile(ctx *updater.Context) error {
 	// 检查目标文件是否存在
 	if _, err := os.Stat(reqmsg.DestPath); err == nil && !reqmsg.OverwriteExisted {
 		err = fmt.Errorf("file already exists and overwriteExisted is set to false")
-		ctx.JSONError(updater.CODE_ERROR, err.Error())
+		execinfo.EndTime = time.Now()
+		execinfo.Message = err.Error()
+		ctx.JSON(updater.CODE_ERROR, err.Error(), execinfo)
 		return err
 	}
 
@@ -103,18 +125,24 @@ func (fc *FileController) handleDownloadFile(ctx *updater.Context) error {
 	// 发起 HTTP 请求
 	req, err := http.NewRequestWithContext(c, http.MethodGet, reqmsg.URL, nil)
 	if err != nil {
-		ctx.JSONError(updater.CODE_ERROR, err.Error())
+		execinfo.EndTime = time.Now()
+		execinfo.Message = err.Error()
+		ctx.JSON(updater.CODE_ERROR, err.Error(), execinfo)
 		return err
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		// 检查错误类型是否为超时错误
+		execinfo.EndTime = time.Now()
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 			// 处理超时错误
-			ctx.JSONError(updater.CODE_TIMEOUT, err.Error())
+			execinfo.Message = err.Error()
+			ctx.JSON(updater.CODE_TIMEOUT, err.Error(), execinfo)
 			return fmt.Errorf("request timed out")
 		}
-		ctx.JSONError(updater.CODE_ERROR, err.Error())
+
+		execinfo.Message = err.Error()
+		ctx.JSON(updater.CODE_ERROR, err.Error(), execinfo)
 		return err
 	}
 	defer resp.Body.Close()
@@ -122,7 +150,9 @@ func (fc *FileController) handleDownloadFile(ctx *updater.Context) error {
 	// 创建目标文件
 	file, err := os.Create(reqmsg.DestPath)
 	if err != nil {
-		ctx.JSONError(updater.CODE_ERROR, err.Error())
+		execinfo.EndTime = time.Now()
+		execinfo.Message = err.Error()
+		ctx.JSON(updater.CODE_ERROR, err.Error(), execinfo)
 		return err
 	}
 	defer file.Close()
@@ -130,10 +160,14 @@ func (fc *FileController) handleDownloadFile(ctx *updater.Context) error {
 	// 将响应的内容写入文件
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
-		ctx.JSONError(updater.CODE_ERROR, err.Error())
+		execinfo.EndTime = time.Now()
+		execinfo.Message = err.Error()
+		ctx.JSON(updater.CODE_ERROR, err.Error(), execinfo)
 		return err
 	}
 
-	ctx.JSONSuccess(nil)
+	execinfo.EndTime = time.Now()
+	execinfo.Message = "success"
+	ctx.JSONSuccess(execinfo)
 	return nil
 }

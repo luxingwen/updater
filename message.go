@@ -30,6 +30,7 @@ type Message struct {
 	Msg     string          `json:"msg"` // 新增 Msg 字段
 	TraceId string          `json:"traceId"`
 	Timeout time.Duration   // 添加 Timeout 字段
+	TaskId  string          `json:"taskId"`
 }
 
 type HandlerFunc func(ctx *Context) error
