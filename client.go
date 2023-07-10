@@ -320,6 +320,7 @@ func (c *Client) getClientInfo() (r *ClientInfo) {
 		OS:        c.OS,
 		Arch:      c.Arch,
 		Heartbeat: time.Now().Unix(),
+		Version:   c.Version,
 	}
 	return
 }
@@ -348,6 +349,7 @@ type ClientInfo struct {
 	Arch      string `json:"arch"`     //
 	Heartbeat int64  `json:"hearbeat"` // 心跳时间
 	LocalIPs  string `json:"localIps"` // 本地IP地址
+	Version   string `json:"version"`  // 客户端版本
 }
 
 // 向服务器发送消息
