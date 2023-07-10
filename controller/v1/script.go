@@ -2,7 +2,6 @@ package v1
 
 import (
 	"encoding/json"
-	"log"
 	"updater"
 )
 
@@ -30,17 +29,17 @@ func (sc *ScriptController) handleExecuteScript(ctx *updater.Context) error {
 
 	scriptTask := updater.NewScriptTask(&req)
 
-	if err := scriptTask.Run(); err != nil {
+	if err := scriptTask.Run(ctx); err != nil {
 		ctx.JSONError(updater.CODE_ERROR, err.Error())
 		return err
 	}
 
 	sb, err := json.Marshal(scriptTask.ScriptResult)
 	if err != nil {
-		log.Println("script task marshal failed, script task:", err)
+		ctx.Logger.Println("script task marshal failed, script task:", err)
 		return err
 	}
-	log.Println("script task finished, script task:", string(sb))
+	ctx.Logger.Println("script task finished, script task:", string(sb))
 	ctx.JSONSuccess(scriptTask.ScriptResult)
 	return nil
 }

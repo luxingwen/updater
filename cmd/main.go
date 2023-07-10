@@ -7,9 +7,14 @@ import (
 	"updater"
 
 	v1 "updater/controller/v1"
+	"updater/pkg/config"
+	"updater/pkg/logger"
 )
 
 func main() {
+
+	config.InitConfig()
+	logger.InitLogger()
 
 	var client *updater.Client
 	var err error
@@ -23,7 +28,7 @@ func main() {
 
 	msghanlder.PrintRegisteredHandlers()
 
-	for _, item := range updater.GetConfig().ServerAddress {
+	for _, item := range config.GetConfig().ServerAddress {
 		servers = append(servers, updater.NewServer(item))
 	}
 	for {

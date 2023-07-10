@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"runtime"
 	"time"
+	log "updater/pkg/logger"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -90,6 +92,7 @@ func (h *MessageHandler) HandleMessages(client *Client, numWorkers int) {
 					Ctx:     ctxWithCancel,
 					Cancel:  cancel,
 					Extra:   make(map[string]interface{}),
+					Logger:  log.GetLogger().With(zap.String("traceId", msg.TraceId), zap.String("taskId", msg.TaskId)),
 				}
 
 				if handler, ok := h.handlers[msg.Type]; ok {

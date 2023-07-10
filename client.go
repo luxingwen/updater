@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"updater/pkg/config"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -154,10 +155,10 @@ func (c *Client) setInitClientInfo() {
 	c.setUUID()
 	c.OS = runtime.GOOS
 	c.Arch = runtime.GOARCH
-	c.Version = Version
+	c.Version = config.Version
 
 	var err error
-	c.LocalIPs, err = GetLocalIPs()
+	c.LocalIPs, err = config.GetLocalIPs()
 
 	if err != nil {
 		log.Println("get local ips error:", err)

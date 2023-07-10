@@ -1,5 +1,12 @@
 {
     "serverAddress":[
         "ws://127.0.0.1:8081/api/v1/ws/"
-    ]
+    ],
+    "logConfig":{
+        "level":"debug",
+        "filename":"./log/agent.log",
+        "maxSize":1024,
+        "maxAge":30,
+        "showConsole":true
+    }
 }

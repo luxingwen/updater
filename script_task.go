@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+	log "updater/pkg/logger"
 )
 
 type ScriptTask struct {
@@ -107,7 +107,7 @@ func (st *ScriptTask) GetContent() []byte {
 	return []byte(st.Content)
 }
 
-func (st *ScriptTask) Run() (err error) {
+func (st *ScriptTask) Run(ctx *Context) (err error) {
 	defer func() {
 		if st.ScriptResult.Code != CodeSuccess {
 			st.Status = TaskStatusFailed
@@ -141,7 +141,7 @@ func (st *ScriptTask) Run() (err error) {
 	defer stdoutFile.Close()
 	defer os.Remove(stdoutFile.Name())
 
-	log.Println("stdoutFile.Name():", stdoutFile.Name())
+	ctx.Logger.Println("stdoutFile.Name():", stdoutFile.Name())
 
 	// 创建标准错误输出文件
 	stderrFile, err := ioutil.TempFile("", st.TaskID+".stderr")
@@ -151,7 +151,7 @@ func (st *ScriptTask) Run() (err error) {
 		return err
 	}
 
-	log.Println("stderrFile.Name():", stderrFile.Name())
+	ctx.Logger.Println("stderrFile.Name():", stderrFile.Name())
 	defer stderrFile.Close()
 	defer os.Remove(stderrFile.Name())
 
@@ -178,18 +178,18 @@ func (st *ScriptTask) Run() (err error) {
 	//args := append(st.InterpreterArgs, tmpfile.Name())
 	args := append(st.InterpreterArgs, cmdStr)
 
-	log.Println("interpreter:", st.Interpreter)
-	log.Println("interpreter args:", st.InterpreterArgs)
-	log.Println("content", st.Content)
-	log.Println("args:", args)
+	ctx.Logger.Println("interpreter:", st.Interpreter)
+	ctx.Logger.Println("interpreter args:", st.InterpreterArgs)
+	ctx.Logger.Println("content", st.Content)
+	ctx.Logger.Println("args:", args)
 
-	ctx, cancel := context.WithTimeout(context.Background(), st.Timeout)
+	ctx0, cancel := context.WithTimeout(context.Background(), st.Timeout)
 	defer cancel()
 	st.Cancel = cancel
 
-	cmd := exec.CommandContext(ctx, st.Interpreter, args...)
+	cmd := exec.CommandContext(ctx0, st.Interpreter, args...)
 
-	log.Println("cmd.Args:", cmd.Args)
+	ctx.Logger.Println("cmd.Args:", cmd.Args)
 
 	if len(st.Stdin) > 0 {
 		cmd.Stdin = bytes.NewBufferString(st.Stdin)

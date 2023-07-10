@@ -3,6 +3,7 @@ package updater
 import (
 	"context"
 	"encoding/json"
+	"updater/pkg/logger"
 )
 
 type Context struct {
@@ -11,6 +12,7 @@ type Context struct {
 	Extra   map[string]interface{}
 	Ctx     context.Context
 	Cancel  context.CancelFunc
+	Logger  *logger.Logger
 }
 
 func (ctx *Context) ShouldBindJSON(req interface{}) (err error) {

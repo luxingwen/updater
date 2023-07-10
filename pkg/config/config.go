@@ -1,10 +1,11 @@
-package updater
+package config
 
 import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net"
+	"os"
 	"strings"
 )
 
@@ -13,27 +14,48 @@ const (
 )
 
 type Config struct {
-	ServerAddress []string `json:"serverAddress"`
+	ServerAddress []string  `json:"serverAddress"` // 代理服务器地址
+	LogConfig     LogConfig `json:"logConfig"`
 }
 
-var conf *Config
+type LogConfig struct {
+	Level       string `json:"level"`       // 日志级别
+	Format      string `json:"format"`      // 日志格式
+	MaxSize     int    `json:"maxSize"`     // 最大文件大小（MB）
+	MaxAge      int    `json:"maxAge"`      // 最大文件保留天数
+	Compress    bool   `json:"compress"`    // 是否压缩
+	Filename    string `json:"filename"`    // 日志文件名
+	ShowConsole bool   `json:"showConsole"` // 是否显示在控制台
+}
 
-func init() {
-	var err error
+var (
+	config *Config
+)
 
-	b, err := ioutil.ReadFile("config.json")
+func InitConfig() {
+	loadConfigFile()
+}
+
+func loadConfigFile() {
+
+	configFile := os.Getenv("CONFIG_FILE")
+	if configFile == "" {
+		configFile = "config.json"
+	}
+
+	b, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		log.Fatal("读取配置文件失败")
 	}
-	conf = new(Config)
-	err = json.Unmarshal(b, conf)
+	config = new(Config)
+	err = json.Unmarshal(b, config)
 	if err != nil {
 		log.Fatal("解析配置文件失败")
 	}
 }
 
 func GetConfig() *Config {
-	return conf
+	return config
 }
 
 func GetLocalIPs() (string, error) {

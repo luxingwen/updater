@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -68,7 +67,7 @@ type ExecuteInfo struct {
 // ... 类似地，实现 handleMoveFile 和 handleDownloadFile ...
 func (fc *FileController) handleDownloadFile(ctx *updater.Context) error {
 
-	log.Println("handleDownloadFile taskid:", ctx.Message.TaskId)
+	ctx.Logger.Println("handleDownloadFile taskid:", ctx.Message.TaskId)
 
 	execinfo := ExecuteInfo{
 		StartTime: time.Now(),
@@ -93,12 +92,12 @@ func (fc *FileController) handleDownloadFile(ctx *updater.Context) error {
 		reqmsg.URL = "http://" + ctx.Client.Server.Url.Host + "/api/v1/pkg/" + reqmsg.DownLoadPath
 	}
 
-	log.Println("download url:", reqmsg.URL)
+	ctx.Logger.Println("download url:", reqmsg.URL)
 	c, cancel := context.WithTimeout(ctx.Ctx, time.Second*time.Duration(reqmsg.Timeout))
 	defer cancel()
 
 	// 创建目标文件夹（如果需要）
-	log.Println("autoCreateDir:", reqmsg.AutoCreateDir)
+	ctx.Logger.Println("autoCreateDir:", reqmsg.AutoCreateDir)
 	if reqmsg.AutoCreateDir {
 		err := os.MkdirAll(filepath.Dir(reqmsg.DestPath), 0755)
 		if err != nil {
@@ -109,8 +108,8 @@ func (fc *FileController) handleDownloadFile(ctx *updater.Context) error {
 		}
 	}
 
-	log.Println("overwriteExisted:", reqmsg.OverwriteExisted)
-	log.Println("destPath:", reqmsg.DestPath)
+	ctx.Logger.Println("overwriteExisted:", reqmsg.OverwriteExisted)
+	ctx.Logger.Println("destPath:", reqmsg.DestPath)
 	// 检查目标文件是否存在
 	if _, err := os.Stat(reqmsg.DestPath); err == nil && !reqmsg.OverwriteExisted {
 		err = fmt.Errorf("file already exists and overwriteExisted is set to false")
