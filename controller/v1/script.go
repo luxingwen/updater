@@ -19,6 +19,17 @@ func NewScriptController(handler *updater.MessageHandler) *ScriptController {
 
 func (sc *ScriptController) registerHandlers() {
 	sc.handler.RegisterHandler("v1/ExecuteScript", sc.handleExecuteScript)
+	sc.handler.RegisterHandler("v1/ExecuteScript/Response", sc.handleResponse)
+}
+
+func (sc *ScriptController) handleResponse(ctx *updater.Context) error {
+	var req updater.ScriptTaskRequest
+	if err := json.Unmarshal(ctx.Message.Data, &req); err != nil {
+		return err
+	}
+
+	ctx.Logger.Println("script task finished, script task:", req.TaskID)
+	return nil
 }
 
 func (sc *ScriptController) handleExecuteScript(ctx *updater.Context) error {

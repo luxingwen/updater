@@ -7,6 +7,7 @@ import (
 	"updater"
 
 	v1 "updater/controller/v1"
+	"updater/pkg/app"
 	"updater/pkg/config"
 	"updater/pkg/logger"
 )
@@ -26,13 +27,15 @@ func main() {
 	v1.NewAuthController(msghanlder)
 	v1.NewScriptController(msghanlder)
 
+	appInfo := app.NewApp()
+
 	msghanlder.PrintRegisteredHandlers()
 
 	for _, item := range config.GetConfig().ServerAddress {
 		servers = append(servers, updater.NewServer(item))
 	}
 	for {
-		client, err = updater.ConnectToServers(servers, msghanlder)
+		client, err = updater.ConnectToServers(servers, msghanlder, appInfo)
 		if err != nil {
 			time.Sleep(time.Second * 5)
 			continue

@@ -1,4 +1,4 @@
-package updater
+package task
 
 type TaskStatus int
 
@@ -17,4 +17,5 @@ type Task interface {
 	SetStatus(status TaskStatus)
 	Run() error
 	Stop() error
+	GetResult() interface{}
 }

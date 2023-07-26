@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 	log "updater/pkg/logger"
+	"updater/pkg/task"
 )
 
 type ScriptTask struct {
@@ -27,7 +29,7 @@ type ScriptTask struct {
 	Stdin           string
 	Created         time.Time
 	Updated         time.Time
-	Status          TaskStatus
+	Status          task.TaskStatus
 	Suffix          string
 	Cancel          context.CancelFunc
 	ScriptResult    *ScriptResult
@@ -78,7 +80,7 @@ func NewScriptTask(request *ScriptTaskRequest) *ScriptTask {
 		Content:     request.Content,
 		Interpreter: request.Interpreter,
 		Stdin:       request.Stdin,
-		Status:      TaskStatusCreated,
+		Status:      task.TaskStatusCreated,
 		WorkDir:     defaultWorkDir,
 		Params:      request.Params,
 		Env:         request.Env,
@@ -99,7 +101,7 @@ func (st *ScriptTask) GetType() string {
 	return st.Type
 }
 
-func (st *ScriptTask) GetStatus() TaskStatus {
+func (st *ScriptTask) GetStatus() task.TaskStatus {
 	return st.Status
 }
 
@@ -107,12 +109,19 @@ func (st *ScriptTask) GetContent() []byte {
 	return []byte(st.Content)
 }
 
+// GetResult returns the result of the task
+func (st *ScriptTask) GetResult() interface{} {
+	return st.ScriptResult
+}
+
 func (st *ScriptTask) Run(ctx *Context) (err error) {
 	defer func() {
 		if st.ScriptResult.Code != CodeSuccess {
-			st.Status = TaskStatusFailed
+			st.Status = task.TaskStatusFailed
 		}
 	}()
+
+	st.SetStatus(task.TaskStatusRunning)
 
 	if len(st.Interpreter) == 0 {
 		st.Interpreter = defaultInterpreter
@@ -299,7 +308,15 @@ func (st *ScriptTask) Stop() error {
 	return nil
 }
 
-func (st *ScriptTask) SetStatus(status TaskStatus) {
+func (st *ScriptTask) SetStatus(status task.TaskStatus) {
 	st.Status = status
 	st.Updated = time.Now()
+}
+
+func (st *ScriptTask) MarshalJSON() ([]byte, error) {
+	return json.Marshal(st)
+}
+
+func (st *ScriptTask) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, st)
 }

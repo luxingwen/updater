@@ -22,14 +22,14 @@ const (
 )
 
 type Message struct {
-	From    string          `json:"from"`
-	To      string          `json:"to"`
-	Id      string          `json:"id"`
+	From    string          `json:"from"`   // 消息发送者
+	To      string          `json:"to"`     // 消息接收者
+	Id      string          `json:"id"`     // 消息 ID
 	Type    string          `json:"type"`   // 消息类型
 	Method  string          `json:"method"` // 消息方法
-	Data    json.RawMessage `json:"data"`
-	Code    string          `json:"code"`
-	Msg     string          `json:"msg"` // 新增 Msg 字段
+	Data    json.RawMessage `json:"data"`   // 消息数据
+	Code    string          `json:"code"`   // 新增 Code 字段
+	Msg     string          `json:"msg"`    // 新增 Msg 字段
 	TraceId string          `json:"traceId"`
 	Timeout time.Duration   // 添加 Timeout 字段
 	TaskId  string          `json:"taskId"`
@@ -91,8 +91,9 @@ func (h *MessageHandler) HandleMessages(client *Client, numWorkers int) {
 					Message: msg,
 					Ctx:     ctxWithCancel,
 					Cancel:  cancel,
+					app:     client.app,
 					Extra:   make(map[string]interface{}),
-					Logger:  log.GetLogger().With(zap.String("traceId", msg.TraceId), zap.String("taskId", msg.TaskId)),
+					Logger:  client.app.Logger.With(zap.String("traceId", msg.TraceId), zap.String("taskId", msg.TaskId)),
 				}
 
 				if handler, ok := h.handlers[msg.Type]; ok {

@@ -3,6 +3,7 @@ package updater
 import (
 	"context"
 	"encoding/json"
+	"updater/pkg/app"
 	"updater/pkg/logger"
 )
 
@@ -13,6 +14,11 @@ type Context struct {
 	Ctx     context.Context
 	Cancel  context.CancelFunc
 	Logger  *logger.Logger
+	app     *app.App
+}
+
+func (ctx *Context) App() *app.App {
+	return ctx.app
 }
 
 func (ctx *Context) ShouldBindJSON(req interface{}) (err error) {
@@ -55,4 +61,11 @@ func (ctx *Context) SendRequest(req interface{}) {
 	ctx.Message.Method = METHOD_REQUEST
 	ctx.Message.Data, _ = json.Marshal(req)
 	ctx.Client.SendMessage(ctx.Message)
+}
+
+func (ctx *Context) Unmarshal(req interface{}) (err error) {
+	if err := json.Unmarshal(ctx.Message.Data, req); err != nil {
+		return err
+	}
+	return
 }

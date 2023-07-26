@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"updater/pkg/app"
 	"updater/pkg/config"
 
 	"github.com/google/uuid"
@@ -34,6 +35,7 @@ type Client struct {
 	Arch           string //
 	Version        string
 	messageHandler *MessageHandler
+	app            *app.App
 }
 
 type Server struct {
@@ -43,11 +45,12 @@ type Server struct {
 	mu      sync.Mutex
 }
 
-func NewClient(server *Server, messageHandler *MessageHandler) *Client {
+func NewClient(server *Server, messageHandler *MessageHandler, app *app.App) *Client {
 	return &Client{
 		Server:         server,
 		send:           make(chan []byte, 4096),
 		messageHandler: messageHandler,
+		app:            app,
 	}
 }
 
@@ -94,11 +97,11 @@ func (c *Client) connect() error {
 }
 
 // 尝试连接到每个服务器，返回连接成功并且负载最低的客户端
-func ConnectToServers(servers []*Server, messageHandler *MessageHandler) (*Client, error) {
+func ConnectToServers(servers []*Server, messageHandler *MessageHandler, app *app.App) (*Client, error) {
 	var minLoad int
 	var minClient *Client
 	for _, server := range servers {
-		client := NewClient(server, messageHandler)
+		client := NewClient(server, messageHandler, app)
 		err := client.connect()
 		if err == nil {
 			if minClient == nil || client.Server.Load < minLoad {
@@ -129,6 +132,12 @@ func (c *Client) Start() error {
 	go c.readPump()
 	go c.writePump()
 
+	c.RegisterUntilSuccess()
+	return nil
+}
+
+// 注册直到成功为止
+func (c *Client) RegisterUntilSuccess() {
 	for {
 		c.ClientRegister()
 		log.Println("registering...")
@@ -140,8 +149,6 @@ func (c *Client) Start() error {
 		log.Println("register failed, retry after 5 seconds")
 		time.Sleep(time.Second * 5)
 	}
-
-	return nil
 }
 
 func (c *Client) Stop() {
@@ -353,7 +360,7 @@ type ClientInfo struct {
 }
 
 // 向服务器发送消息
-func (c *Client) SendMessage(msg *Message) {
+func (c *Client) SendMessage(msg *Message) error {
 	msg.From = c.UUID
 	if msg.Id == "" {
 		msg.Id = uuid.New().String()
@@ -362,9 +369,10 @@ func (c *Client) SendMessage(msg *Message) {
 	b, err := json.Marshal(msg)
 	if err != nil {
 		log.Println("marshal message error:", err)
-		return
+		return err
 	}
 	c.Send(b)
+	return nil
 }
 
 func (c *Client) Send(msg []byte) {

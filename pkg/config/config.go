@@ -16,6 +16,7 @@ const (
 type Config struct {
 	ServerAddress []string  `json:"serverAddress"` // 代理服务器地址
 	LogConfig     LogConfig `json:"logConfig"`
+	TaskStorePath string    `json:"taskStorePath"` // 任务存储路径
 }
 
 type LogConfig struct {
@@ -26,6 +27,7 @@ type LogConfig struct {
 	Compress    bool   `json:"compress"`    // 是否压缩
 	Filename    string `json:"filename"`    // 日志文件名
 	ShowConsole bool   `json:"showConsole"` // 是否显示在控制台
+
 }
 
 var (
@@ -51,6 +53,10 @@ func loadConfigFile() {
 	err = json.Unmarshal(b, config)
 	if err != nil {
 		log.Fatal("解析配置文件失败")
+	}
+
+	if config.TaskStorePath == "" {
+		config.TaskStorePath = ".data/tasks"
 	}
 }
 

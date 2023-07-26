@@ -1,3 +1,4 @@
+bin
 *.log
 cmd/cmd
 cmd/client
